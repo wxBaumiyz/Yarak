@@ -1,0 +1,7 @@
+# Kustomize-Overlay fuer die yarak-Abgabe:
+# biletado-Basis (overlays/kind) + unser reservations-Image statt des Referenz-Backends.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - https://gitlab.com/biletado/kustomize.git//overlays/kind?ref=main
