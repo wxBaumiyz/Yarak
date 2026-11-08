@@ -1,0 +1,28 @@
+# CI fuer den Dummy-Container: baut das minimale Image (Basis python:3.12-slim)
+#ghcr.io/wxbaumiyz/yarak
+
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/wxbaumiyz/yarak
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: login ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: build image (python:3.12-slim)
+        run: podman build -t "${{ env.IMAGE }}:latest" -t "${{ env.IMAGE }}:${{ github.sha }}" -f reservations/Containerfile reservations/
+      - name: push image
+        run: podman push "${{ env.IMAGE }}:latest" && podman push "${{ env.IMAGE }}:${{ github.sha }}"
