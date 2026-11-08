@@ -1,0 +1,19 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Node / Build
+node_modules/
+dist/
+*.log
+
+# python
+.venv/
+__pycache__/
+# python extras
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.db

@@ -1,0 +1,6 @@
+[submodule "biletado/kustomize"]
+	path = biletado/kustomize
+	url = https://gitlab.com/biletado/kustomize.git
+[submodule "biletado/apidocs"]
+	path = biletado/apidocs
+	url = https://gitlab.com/biletado/apidocs.git
