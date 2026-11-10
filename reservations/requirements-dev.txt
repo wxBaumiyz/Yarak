@@ -1,0 +1,13 @@
+# Dev-/Test-Abhaengigkeiten (lokal und CI test-stage), zusaetzlich zu requirements.txt:
+-r requirements.txt
+
+pytest==9.2.0
+pytest-asyncio==1.4.1.post1
+aiosqlite==0.22.1
+ruff==0.17.4
+
+# transitiv:
+iniconfig==2.3.1
+packaging==26.3
+pluggy==1.7.0
+Pygments==2.21.0
