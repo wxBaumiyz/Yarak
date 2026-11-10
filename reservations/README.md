@@ -106,6 +106,7 @@ podman run --rm --network host registry.gitlab.com/biletado/apidocs/httpyac:late
        '510_CreateReservationsPublic-v4.http' '550_ReadWriteReservationsAuth-v4.http' \
        '560_ReadWriteReservationsETag-v4.http' --all
 # in CI: siehe .github/workflows/ci.yml (Jobs lint/test/build im GitHub-Repo)
+# lokal im Container (kein npm): siehe ../localbuild/build-commands.md Abschnitt 9
 ```
 
 Hinweise zur Spec-Konformitaet:

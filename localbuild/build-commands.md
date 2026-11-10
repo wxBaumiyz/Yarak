@@ -119,3 +119,29 @@ podman exec kind-cluster-control-plane crictl ps
 kubectl delete -k localbuild/ -n beltado     # alle Ressourcen aus dem Namespace entfernen
 kind delete cluster --name kind-cluster        # Cluster komplett loeschen
 ```
+
+## 9) httpyac-Integrationstests im Container (kein npm noetig)
+
+Die offiziellen beltado-Tests liegen im Submodule `biletado/apidocs/httpyac/*.http`
+(Submodule holen: `git submodule update --init beltado/apidocs`). httpyac laeuft im fertigen
+Image `registry.gitlab.com/biletado/apidocs/httpyac:latest` — Working-Dir wird in den Container gemountet:
+
+```powershell
+cd beltado/apidocs/httpyac
+# 1) Token vom Keycloak holen (000_Authenticate.http, speichert das Token fuer die folgenden Requests)
+podman run --rm -it --network host -v "${PWD}:/work" -w /work registry.gitlab.com/biletado/apidocs/httpyac:latest send 000_Authenticate.http --all
+# 2) alle reservations-v4-Tests gegen den lokalen Cluster (Ingress auf :9090)
+podman run --rm -it --network host -v "${PWD}:/work" -w /work registry.gitlab.com/biletado/apidocs/httpyac:latest send 400_ReadReservationsPublic-v4.http 500_WriteReservationsPublic-v4.http 510_CreateReservationsPublic-v4.http 550_ReadWriteReservationsAuth-v4.http 560_ReadWriteReservationsETag-v4.http --all
+cd ../../..
+```
+
+Hinweise:
+
+- `--network host`, damit `localhost` im Container dein Windows-Host ist. Falls das nicht klappt:
+  in `httpyac.env.json5` den Host auf `http://host.containers.internal:9090` setzen.
+- Host/Port stehen in `httpyac.env.json5`, der Token-Flow in `000_Authenticate.http` + `helpers-auth.js`.
+- Was httpyac sonst kann: einzelne Requests aus `.http`-Dateien senden (`send <file>` ohne `--all`
+  nur den Request unter dem Cursor/ersten), Variablen zwischen Requests in einer Datei chainen,
+  Antworten gegen die OpenAPI-Spec (`specs/v4/reservations-v4.yaml`) validieren lassen,
+  JUnit-/HTML-Reports erzeugen (`--reporter junit --reporter html` ...) — damit lassen sich die
+  Tests auch als CI-Job fahren.

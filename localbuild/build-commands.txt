@@ -41,6 +41,13 @@ podman save localhost/yarak-reservations:v4 --format oci-archive -o "$env:TEMP\r
 kind load image-archive "$env:TEMP\res-v4.tar" --name kind-cluster
 kubectl rollout restart deployment/reservations -n beltado
 
-# 7) Aufraeumen
+# 8) Aufraeumen
 kubectl delete -k localbuild/ -n beltado
 kind delete cluster --name kind-cluster
+
+# 9) httpyac-Integrationstests im Container
+git submodule update --init beltado/apidocs
+cd beltado/apidocs/httpyac
+podman run --rm -it --network host -v "${PWD}:/work" -w /work registry.gitlab.com/biletado/apidocs/httpyac:latest send 000_Authenticate.http --all
+podman run --rm -it --network host -v "${PWD}:/work" -w /work registry.gitlab.com/biletado/apidocs/httpyac:latest send 400_ReadReservationsPublic-v4.http 500_WriteReservationsPublic-v4.http 510_CreateReservationsPublic-v4.http 550_ReadWriteReservationsAuth-v4.http 560_ReadWriteReservationsETag-v4.http --all
+cd ../../..

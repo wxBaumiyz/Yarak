@@ -7,7 +7,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - https://gitlab.com/biletado/kustomize.git//overlays/kind?ref=main
+  # lokale Variante nutzt local geclontes submodule 
+  - biletado/kustomize/overlays/kind
+  # Remote-Variante nutzt remote Repo:
+  # - https://gitlab.com/biletado/kustomize.git//overlays/kind?ref=main
 
 patches:
   - target:
