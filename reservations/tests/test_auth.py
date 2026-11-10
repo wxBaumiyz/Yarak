@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Tests der JWT-Authentifizierung: /status/auth und geschuetzte /reservations/-Endpunkte."""
 
 from __future__ import annotations

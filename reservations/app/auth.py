@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """JWT-Authentifizierung gegen das IAM (Keycloak) der Umgebung.
 
 Geprueft wird die Signatur des Tokens ueber die JWKS des Realms sowie die
@@ -72,4 +73,6 @@ async def require_user(request: Request) -> dict:
     token = header[7:].strip()
     if not token:
         raise ApiError(401, "not_authorized", "Missing bearer token.", headers={"WWW-Authenticate": WWW_AUTHENTICATE})
-    return verifier.verify(token)
+    claims = verifier.verify(token)
+    request.state.user = claims  # fuer Audit-Logging in den Error-Handlern
+    return claims

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Tests der schreibenden Endpunkte unter /reservations/ (mit JWT): CRUD, 409/412, ETag."""
 
 from __future__ import annotations

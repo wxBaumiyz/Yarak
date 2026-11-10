@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """ETag-Berechnung fuer Optimistic Concurrency Control (If-Match)."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Pydantic-Modelle passend zu den Schemas der OpenAPI-Spec reservations-v4."""
 
 from __future__ import annotations

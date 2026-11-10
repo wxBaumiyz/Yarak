@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Konfiguration des reservations-Service, komplett ueber Umgebungsvariablen steuerbar.
 
 Die Default-Werte passen zur Deployment-Umgebung aus biletado/kustomize

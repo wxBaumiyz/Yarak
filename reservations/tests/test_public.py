@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Tests der oeffentlichen API ohne Authentifizierung: /status, /public-reservations/."""
 
 from __future__ import annotations

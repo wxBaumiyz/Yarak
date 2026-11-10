@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Health-Endpunkte: /health, /health/live, /health/ready (ohne Auth).
 
 /health/ready beruecksichtigt neben der DB-Verbindung die Liveness des

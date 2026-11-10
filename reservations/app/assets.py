@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """HTTP-Client fuer den assets-Service.
 
 Raum-Existenz wird laut Aufgabenstellung ueber die assets-API geprueft

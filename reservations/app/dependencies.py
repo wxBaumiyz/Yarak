@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """FastAPI-Dependencies (DB-Session, assets-Client)."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Fachlogik der Reservierungen (DB-Zugriff, Validierung, Overlap-Pruefung, Audit-Logging)."""
 
 from __future__ import annotations
@@ -18,14 +19,29 @@ from app.schemas import ReservationPrototype, ReservationReplacement
 audit_logger = logging.getLogger("app.audit")
 
 
-def _audit(operation: str, reservation_id: uuid.UUID, user_id: str | None) -> None:
-    """Loggt nicht-lesende Operationen mit Operation, Objekttyp, Objekt-Id und User-Id."""
+def _audit(operation: str, reservation_id: uuid.UUID, user_id: str | None, details: dict | None = None) -> None:
+    """Loggt nicht-lesende Operationen: was (Operation), an welchem Objekt, von welchem User - inkl. Details.
+
+    `details` beschreibt, was der User konkret gemacht hat (beim Anlegen Name/Raum/Zeitraum, beim
+    Ersetzen die geaenderten Felder als {feld: [alt, neu]}, beim Loeschen das permanent-Flag) und
+    landet zusaetzlich als strukturiertes `details`-Feld im Logeintrag (sichtbar im JSON-Format).
+    """
+    extra: dict = {
+        "operation": operation,
+        "object_type": "reservation",
+        "object_id": str(reservation_id),
+        "user_id": user_id or "anonymous",
+    }
+    if details:
+        extra["details"] = details
+    rendered = " ".join(f"{key}={value}" for key, value in details.items()) if details else ""
     audit_logger.info(
-        "operation=%s object_type=reservation object_id=%s user_id=%s",
+        "operation=%s object_type=reservation object_id=%s user_id=%s%s",
         operation,
         reservation_id,
         user_id or "anonymous",
-        extra={"operation": operation, "object_type": "reservation", "object_id": str(reservation_id), "user_id": user_id},
+        f" {rendered}" if rendered else "",
+        extra=extra,
     )
 
 
@@ -115,7 +131,17 @@ async def create_reservation(
     session.add(reservation)
     await session.commit()
     await session.refresh(reservation)
-    _audit("create", reservation.id, user_id)
+    _audit(
+        "create",
+        reservation.id,
+        user_id,
+        {
+            "name": reservation.name,
+            "room_id": str(reservation.room_id),
+            "from": reservation.from_.isoformat(),
+            "to": reservation.to_.isoformat(),
+        },
+    )
     return reservation
 
 
@@ -156,6 +182,14 @@ async def replace_reservation(
             f"The room `{body.room_id}` is already reserved from `{overlap.from_}` to `{overlap.to_}`.",
         )
 
+    before = {
+        "name": existing.name,
+        "comment": existing.comment,
+        "from": existing.from_.isoformat(),
+        "to": existing.to_.isoformat(),
+        "room_id": str(existing.room_id),
+        "deleted_at": existing.deleted_at.isoformat() if existing.deleted_at else None,
+    }
     existing.name = body.name
     existing.comment = body.comment
     existing.from_ = body.from_
@@ -165,7 +199,16 @@ async def replace_reservation(
         existing.deleted_at = None  # Wiederherstellen
     await session.commit()
     await session.refresh(existing)
-    _audit("replace", existing.id, user_id)
+    after = {
+        "name": existing.name,
+        "comment": existing.comment,
+        "from": existing.from_.isoformat(),
+        "to": existing.to_.isoformat(),
+        "room_id": str(existing.room_id),
+        "deleted_at": existing.deleted_at.isoformat() if existing.deleted_at else None,
+    }
+    changes = {key: [before[key], after[key]] for key in before if before[key] != after[key]}
+    _audit("replace", existing.id, user_id, {"changes": changes})
     return existing, False
 
 
@@ -191,4 +234,4 @@ async def delete_reservation(
         existing.deleted_at = datetime.now(UTC)
         operation = "delete"
     await session.commit()
-    _audit(operation, reservation_id, user_id)
+    _audit(operation, reservation_id, user_id, {"permanent": permanent})

@@ -1,13 +1,26 @@
-"""Logging-Setup: konfigurierbares Loglevel, wahlweise Text- oder JSON-Format."""
+# SPDX-License-Identifier: MIT
+"""Logging-Setup: konfigurierbares Loglevel, Text- oder JSON-Format, Request-Id in jedem Eintrag."""
 
 from __future__ import annotations
 
 import json
 import logging
 import sys
+from contextvars import ContextVar
 from datetime import UTC, datetime
 
 _RESERVED = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys())
+
+# Correlation-Id des laufenden Requests; wird vom Middleware in app/main.py gesetzt.
+request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
+
+
+class RequestIdFilter(logging.Filter):
+    """Ergaenzt jeden Logeintrag um die request_id des zugehoerigen HTTP-Requests."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = request_id_var.get()
+        return True
 
 
 class JsonFormatter(logging.Formatter):
@@ -30,10 +43,11 @@ class JsonFormatter(logging.Formatter):
 
 def configure_logging(level: str = "INFO", fmt: str = "text") -> None:
     handler = logging.StreamHandler(sys.stdout)
+    handler.addFilter(RequestIdFilter())
     if fmt == "json":
         handler.setFormatter(JsonFormatter())
     else:
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s"))
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-7s [%(request_id)s] %(name)s: %(message)s"))
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(level)

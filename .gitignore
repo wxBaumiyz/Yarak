@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 # OS / Editor
 .DS_Store
 Thumbs.db
@@ -7,6 +8,8 @@ Thumbs.db
 # Node / Build
 node_modules/
 dist/
+build/
+*.egg-info/
 *.log
 
 # python

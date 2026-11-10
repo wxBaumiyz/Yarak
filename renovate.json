@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: MIT
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "description": "Auto-Renovate fuer Upstream-Dependencies: Python (pyproject.toml + pip-compile-Lockfiles) und Docker-Basisimage (auf Digest gepinnt).",
+  "packageRules": [
+    {
+      "description": "Python-Deps: Quelle ist pyproject.toml, die Lockfiles werden per pip-compile im selben PR neu generiert (inkl. neuer sha256-Hashes).",
+      "matchManagers": ["pep621", "pip-compile"],
+      "matchFileNames": [
+        "reservations/pyproject.toml",
+        "reservations/requirements.txt",
+        "reservations/requirements-dev.txt"
+      ],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Docker-Basisimage python:3.12-slim auf sha256-Digest pinnen und bei neuem Tag aktualisieren.",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["python"],
+      "pinDigests": true
+    },
+    {
+      "description": "Patch/Minor automatisch mergen, sobald die CI (lint/test/build) auf dem PR gruen ist. Major-Updates bleiben als PR zur manuellen Review.",
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    }
+  ]
+}

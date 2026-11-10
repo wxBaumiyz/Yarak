@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 [submodule "biletado/kustomize"]
 	path = biletado/kustomize
 	url = https://gitlab.com/biletado/kustomize.git

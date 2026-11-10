@@ -1,5 +1,6 @@
-# CI fuer den Dummy-Container: baut das minimale Image (Basis python:3.12-slim)
-#ghcr.io/wxbaumiyz/yarak
+# SPDX-License-Identifier: MIT
+# CI fuer das reservations-Backend (Python): Lint (ruff) + Tests (pytest) aus dem
+# hash-gepinnten Lockfile, dann Image-Build mit podman -> ghcr.io/wxbaumiyz/yarak
 
 name: ci
 
@@ -16,6 +17,31 @@ env:
   IMAGE: ghcr.io/wxbaumiyz/yarak
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install dev-lock (sha256-Hashes)
+        run: python -m pip install --require-hashes -r reservations/requirements-dev.txt
+      - name: ruff check
+        run: ruff check reservations
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install dev-lock (sha256-Hashes)
+        run: python -m pip install --require-hashes -r reservations/requirements-dev.txt
+      - name: pytest
+        working-directory: reservations
+        run: python -m pytest -q
+
   build:
     runs-on: ubuntu-latest
     steps:

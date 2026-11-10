@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """SQLAlchemy-ORM-Modell der reservations-Tabelle (Schema siehe kustomize 200_reservations-v4.sql)."""
 
 from __future__ import annotations

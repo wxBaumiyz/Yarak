@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Gemeinsame Hilfsfunktionen der Router."""
 
 from __future__ import annotations

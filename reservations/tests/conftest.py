@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Test-Fixtures: App mit sqlite-DB, Fake-assets-Service und lokalem RSA-JWKS."""
 
 from __future__ import annotations

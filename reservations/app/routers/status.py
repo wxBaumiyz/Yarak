@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Status-Endpunkte: /status (ohne Auth) und /status/auth (mit Auth, HTTP 204)."""
 
 from __future__ import annotations

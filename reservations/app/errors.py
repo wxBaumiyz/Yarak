@@ -1,13 +1,18 @@
+# SPDX-License-Identifier: MIT
 """Zentrales Error-Handling im Format des ErrorContainer-Schemas aus der OpenAPI-Spec."""
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger("app")
+audit_logger = logging.getLogger("app.audit")
 
 
 class ApiError(Exception):
@@ -37,6 +42,26 @@ def error_body(code: str, message: str, more_info: str | None = None) -> dict[st
 
 
 async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
+    if request.method in {"POST", "PUT", "DELETE", "PATCH"}:
+        # abgelehnte Schreibzugriffe nachvollziehbar ins Audit-Log: wer, welcher Request, warum abgelehnt
+        claims = getattr(request.state, "user", None) or {}
+        user_id = claims.get("sub") or "anonymous"
+        audit_logger.warning(
+            "operation=denied method=%s path=%s status=%s code=%s user_id=%s",
+            request.method,
+            request.url.path,
+            exc.status_code,
+            exc.code,
+            user_id,
+            extra={
+                "operation": "denied",
+                "method": request.method,
+                "path": request.url.path,
+                "status": exc.status_code,
+                "code": exc.code,
+                "user_id": user_id,
+            },
+        )
     return JSONResponse(
         status_code=exc.status_code,
         content=error_body(exc.code, exc.message, exc.more_info),
@@ -56,4 +81,5 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 
 
 async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.error("unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
     return JSONResponse(status_code=500, content=error_body("internal_error", "Unexpected server error."))

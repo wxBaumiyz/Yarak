@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Tests der health-Endpunkte inkl. assets-Liveness im readiness-Check."""
 
 from __future__ import annotations

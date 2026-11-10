@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 # biletado-reservations-v4 (yarak as rest api kubernetes)
 
 Backend für die REST-Schnittstelle **biletado/reservations-v4**
@@ -57,10 +58,28 @@ Fehlerantworten entsprechen dem `ErrorContainer`-Schema (`errors[].code`, `trace
 | `API_VERSION` | `4.1.1` | in `/status` reported |
 | `AUTHORS` | Gruppenmitglieder | komma-getrennt, in `/status` reported |
 
+## Abhaengigkeiten (Lockfiles & Renovate)
+
+- Deklariert werden die Abhaengigkeiten in `pyproject.toml` (`project.dependencies` = Runtime,
+  `project.optional-dependencies.dev` = Tests/Lint).
+- Daraus generated sind die **Lockfiles** `requirements.txt` (Runtime) und `requirements-dev.txt`
+  (Runtime + Dev) via `pip-compile --generate-hashes`: jede Version ist exakt gepinnt (`==`) und
+  mit **sha256-Hashes** aller Release-Artefakte versehen. Installiert wird hash-verifiziert mit
+  `pip install --require-hashes -r requirements-dev.txt`. Das Container-Image installiert die
+  Runtime-Deps ebenfalls hash-verifiziert aus `requirements.txt` (siehe `Containerfile`).
+- Regenerieren nach Aenderung an `pyproject.toml`:
+  `pip-compile --generate-hashes -o requirements.txt pyproject.toml` bzw.
+  `pip-compile --extra=dev --generate-hashes -o requirements-dev.txt pyproject.toml`
+- **Renovate** (`../renovate.json` im Repo-Root) aktualisiert Upstream-Dependencies automatisch
+  (pyproject.toml + Lockfiles, Docker-Basisimage wird auf Digest gepinnt) und oeffnet dafuer PRs.
+
 ## Lokal starten
 
 ```sh
-python -m venv .venv && .venv/bin/pip install -e ".[dev]"   # bzw. Scripts/ auf Windows
+python -m venv .venv
+# Lockfile mit sha256-Hashes installieren (dev = Runtime + pytest/ruff), dann das Projekt selbst:
+.venv/bin/pip install --require-hashes -r requirements-dev.txt   # bzw. Scripts\pip.exe auf Windows
+.venv/bin/pip install --no-deps -e .
 DATABASE_URL="sqlite+aiosqlite:///./dev.db" \
 ASSETS_API_HOST="http://localhost:9090" \
 uvicorn app.main:app --port 9000
@@ -69,8 +88,8 @@ uvicorn app.main:app --port 9000
 ## Tests
 
 ```sh
-python -m pytest        # 31 Tests: public API, Auth/JWT, Schreibzugriffe, ETag, Health
-ruff check .            # Linting
+python -m pytest        # public API, Auth/JWT, Schreibzugriffe, ETag (If-Match/412 + If-None-Match/304), Audit-Logging, Health
+ruff check .            # Linting (laeuft auch in der CI)
 ```
 
 Zusaetzlich laufen die offiziellen httpyac-Integrationstests aus `../biletado/apidocs/httpyac`
@@ -82,7 +101,7 @@ podman run --rm --network host registry.gitlab.com/biletado/apidocs/httpyac:late
   send '400_ReadReservationsPublic-v4.http' '500_WriteReservationsPublic-v4.http' \
        '510_CreateReservationsPublic-v4.http' '550_ReadWriteReservationsAuth-v4.http' \
        '560_ReadWriteReservationsETag-v4.http' --all
-# in CI: siehe ../kustomization/.gitlab-ci.yml (pipeline-Komponente integration-tests)
+# in CI: siehe .github/workflows/ci.yml (Jobs lint/test/build im GitHub-Repo)
 ```
 
 Hinweise zur Spec-Konformitaet:
@@ -92,18 +111,20 @@ Hinweise zur Spec-Konformitaet:
 - `include_deleted`/`permanent` werden als String gelesen: nur exakt `true` aktiviert,
   jeder andere Wert (z. B. `maybe`) ist false bzw. Soft-Delete.
 - Der ETag ist ein schwacher Validator (`W/"..."`), damit er die gzip-Kompression des
-  Envoy-Ingress der biletado-Umgebung ueberlebt.
+  Envoy-Ingress der biletado-Umgebung ueberlebt. Er wird bei GET/POST/PUT als `ETag`-Header
+  geliefert; `If-Match` auf PUT/DELETE liefert bei Abweichung 412, `If-None-Match` auf GET bei
+  Gleichstand 304 (Not Modified).
 
 ## Container-Image
 
-In der GitLab-CI baut die Komponente `biletado/pipeline/image-build` (siehe `.gitlab-ci.yml`)
-das Image mit buildah und pusht es nach `$CI_REGISTRY_IMAGE` (Tags: Commit-SHA, `latest` auf dem
-Default-Branch) inkl. Container-Scanning. Lokal:
+Die GitHub Actions CI (`.github/workflows/ci.yml` im Repo-Root, Jobs `lint` / `test` / `build`)
+baut das Image mit podman und pusht es nach `ghcr.io/wxbaumiyz/yarak` (Tags: Commit-SHA und
+`latest`). Lokal:
 
 ```sh
-podman build -t registry.gitlab.com/yarak/biletado-reservations-v4:latest -f Containerfile .
+podman build -t ghcr.io/wxbaumiyz/yarak:latest -f Containerfile .
 # ins kind-Cluster laden:
-podman save registry.gitlab.com/yarak/biletado-reservations-v4:latest --format oci-archive -o reservations.tar
+podman save ghcr.io/wxbaumiyz/yarak:latest --format oci-archive -o reservations.tar
 kind load image-archive reservations.tar -n kind-cluster
 ```
 
@@ -112,6 +133,15 @@ aus `biletado/kustomize/overlays/kind` auf dieses Image).
 
 ## Logging
 
-Nicht-lesende Operationen (create/replace/delete) werden mit Operation, Objekttyp
-(`reservation`), Objekt-Id und User-Id (`sub` aus dem JWT) geloggt; bei `LOG_FORMAT=json`
-als JSON-Zeilen.
+Neben den Uvicorn-Access-Logs schreibt der Service eigene, nachvollziehbare Logs
+(`LOG_LEVEL`, `LOG_FORMAT=text|json`; bei JSON eine Zeile pro Eintrag inkl. aller Extra-Felder):
+
+- **Audit-Log** (`app.audit`): jede nicht-lesende Operation (create/replace/delete) wird mit
+  Operation, Objekttyp, Objekt-Id, User-Id (`sub` aus dem JWT, sonst `anonymous`) und **Details**
+  geloggt - also was der User konkret gemacht hat (beim Anlegen Name/Raum/Zeitraum, beim
+  Ersetzen die geaenderten Felder als `{feld: [alt, neu]}`, beim Loeschen das `permanent`-Flag).
+  Abgelehnte Schreibzugriffe (z. B. 412 `etag_mismatch`, 409 `overlapping_reservation`) werden
+  als WARNING mit Methode, Pfad, Status, Error-Code und User-Id protokolliert.
+- **Request-Id**: pro HTTP-Request wird eine `X-Request-ID` vergeben (eine vorhandene wird
+  uebernommen) und in jedem Logeintrag als Feld `request_id` mitgefuehrt, sodass sich alle
+  Eintraege einem Request zuordnen lassen. Die Id steht auch im Response-Header.

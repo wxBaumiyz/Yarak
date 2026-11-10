@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Oeffentliche Endpunkte unter /public-reservations/ (nur lesend + anlegen, nie geloeschte)."""
 
 from __future__ import annotations
@@ -5,7 +6,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +14,7 @@ from app import service
 from app.assets import AssetsClient
 from app.dependencies import get_assets, get_session
 from app.errors import ApiError
-from app.etag import compute_etag
+from app.etag import compute_etag, etag_matches
 from app.routers.common import parse_json_body
 from app.schemas import ReservationPrototype, reservation_to_dict
 
@@ -57,9 +58,14 @@ async def create_public_reservation(
 async def get_public_reservation(
     reservation_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-) -> JSONResponse:
+    if_none_match: str | None = Header(default=None, alias="If-None-Match"),
+) -> Response:
     reservation = await service.get_reservation(session, reservation_id)
     if reservation is None or reservation.deleted_at is not None:
         # 404-Code muss laut ErrorContainer-Enum der Spec einer der erlaubten Werte sein.
         raise ApiError(404, "deleted_reservation", f"The reservation `{reservation_id}` does not exist or is deleted.")
-    return JSONResponse(content=reservation_to_dict(reservation), headers={"ETag": compute_etag(reservation)})
+    etag = compute_etag(reservation)
+    if if_none_match is not None and etag_matches(if_none_match, etag):
+        # Ressource seit dem letzten GET des Clients unveraendert -> 304 ohne Body
+        return Response(status_code=304, headers={"ETag": etag})
+    return JSONResponse(content=reservation_to_dict(reservation), headers={"ETag": etag})

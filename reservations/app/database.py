@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Async-DB-Engine, Session-Factory und Schema-Initialisierung."""
 
 from __future__ import annotations

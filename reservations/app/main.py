@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """FastAPI-App des reservations-v4-Backends.
 
 Start lokal:  uvicorn app.main:app --port 9000
@@ -6,9 +7,10 @@ Konfiguration komplett ueber Umgebungsvariablen, siehe app/config.py und README.
 
 from __future__ import annotations
 
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,7 +19,7 @@ from app.auth import JwtVerifier
 from app.config import Settings, load_settings
 from app.database import create_engine, init_db, make_session_factory
 from app.errors import ApiError, api_error_handler, unhandled_error_handler, validation_error_handler
-from app.logging_conf import configure_logging
+from app.logging_conf import configure_logging, request_id_var
 from app.routers import health, public, reservations, status
 
 
@@ -41,6 +43,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
         allow_credentials=False,
     )
+
+    @app.middleware("http")
+    async def add_request_id(request: Request, call_next):
+        """Setzt pro Request eine X-Request-ID (uebernimmt eine vorhandene) und loggt sie in jedem Eintrag mit."""
+        request_id = request.headers.get("x-request-id") or uuid.uuid4().hex
+        token = request_id_var.set(request_id)
+        try:
+            response = await call_next(request)
+        finally:
+            request_id_var.reset(token)
+        response.headers["X-Request-ID"] = request_id
+        return response
 
     app.state.settings = settings
     app.state.engine = create_engine(settings.resolved_database_url)
