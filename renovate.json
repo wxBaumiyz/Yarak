@@ -2,17 +2,24 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "description": "Auto-Renovate fuer Upstream-Dependencies: Python (pyproject.toml + pip-compile-Lockfiles) und Docker-Basisimage (auf Digest gepinnt).",
+  "description": "Auto-Renovate fuer Upstream-Dependencies: Python (pyproject.toml + Lockfiles) und Docker-Basisimage (auf Digest gepinnt).",
   "packageRules": [
     {
-      "description": "Python-Deps: Quelle ist pyproject.toml, die Lockfiles werden per pip-compile im selben PR neu generiert (inkl. neuer sha256-Hashes).",
-      "matchManagers": ["pep621", "pip-compile"],
-      "matchFileNames": [
-        "reservations/pyproject.toml",
-        "reservations/requirements.txt",
-        "reservations/requirements-dev.txt"
-      ],
-      "rangeStrategy": "bump"
+      "description": "Python-Deps: Quelle ist pyproject.toml (pep621). Die Lockfiles requirements*.txt werden im selben PR per postUpgradeTasks mit uv UNIVERSELL neu generiert (inkl. sha256-Hashes + Platform-Marker).",
+      "matchManagers": ["pep621"],
+      "matchFileNames": ["reservations/pyproject.toml"],
+      "postUpgradeTasks": {
+        "commands": [
+          "pip install -q uv && cd reservations && uv pip compile --universal --generate-hashes --python-version 3.12 pyproject.toml -o requirements.txt && uv pip compile --universal --generate-hashes --python-version 3.12 --extra dev pyproject.toml -o requirements-dev.txt"
+        ],
+        "executionMode": "update"
+      }
+    },
+    {
+      "description": "requirements*.txt nicht direkt editieren lassen (pip-compile wuerde ohne --universal Linux-only-Deps wie uvloop verlieren) - Regeneration passiert ueber pyproject + postUpgradeTasks.",
+      "matchManagers": ["pip-compile", "pip_requirements"],
+      "matchFileNames": ["reservations/requirements.txt", "reservations/requirements-dev.txt"],
+      "enabled": false
     },
     {
       "description": "Docker-Basisimage python:3.12-slim auf sha256-Digest pinnen und bei neuem Tag aktualisieren.",

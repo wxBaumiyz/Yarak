@@ -63,13 +63,17 @@ Fehlerantworten entsprechen dem `ErrorContainer`-Schema (`errors[].code`, `trace
 - Deklariert werden die Abhaengigkeiten in `pyproject.toml` (`project.dependencies` = Runtime,
   `project.optional-dependencies.dev` = Tests/Lint).
 - Daraus generated sind die **Lockfiles** `requirements.txt` (Runtime) und `requirements-dev.txt`
-  (Runtime + Dev) via `pip-compile --generate-hashes`: jede Version ist exakt gepinnt (`==`) und
-  mit **sha256-Hashes** aller Release-Artefakte versehen. Installiert wird hash-verifiziert mit
+  (Runtime + Dev) via `uv pip compile --universal --generate-hashes`: jede Version ist exakt gepinnt (`==`) und
+  mit **sha256-Hashes** aller Release-Artefakte versehen (universell: inkl. Linux-only-Paketen wie
+  `uvloop` mit Platform-Markern). Installiert wird hash-verifiziert mit
   `pip install --require-hashes -r requirements-dev.txt`. Das Container-Image installiert die
   Runtime-Deps ebenfalls hash-verifiziert aus `requirements.txt` (siehe `Containerfile`).
 - Regenerieren nach Aenderung an `pyproject.toml`:
-  `pip-compile --generate-hashes -o requirements.txt pyproject.toml` bzw.
-  `pip-compile --extra=dev --generate-hashes -o requirements-dev.txt pyproject.toml`
+  `uv pip compile --universal --generate-hashes --python-version 3.12 pyproject.toml -o requirements.txt` bzw.
+  `uv pip compile --universal --generate-hashes --python-version 3.12 --extra dev pyproject.toml -o requirements-dev.txt`
+
+  (immer `--universal`! Ohne Marker fehlen z. B. Linux-only-Dependencies wie `uvloop` im Lock und
+  `pip install --require-hashes` schlaegt dann auf Linux/CI fehl)
 - **Renovate** (`../renovate.json` im Repo-Root) aktualisiert Upstream-Dependencies automatisch
   (pyproject.toml + Lockfiles, Docker-Basisimage wird auf Digest gepinnt) und oeffnet dafuer PRs.
 
