@@ -134,6 +134,8 @@ kind load image-archive reservations.tar -n kind-cluster
 
 Deployment im Cluster: siehe `../kustomization/kustomization.yaml` (patcht das `reservations`-Deployment
 aus `biletado/kustomize/overlays/kind` auf dieses Image).
+**Lokal builden + in kind deployen** (kind-Cluster, lokales Image, alles in einem Ordner):
+siehe `../localbuild/build-commands.md` bzw. nur die Commands in `../localbuild/build-commands.txt`.
 
 ## Logging
 

@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+# kind-Cluster-Config fuer das lokale beltado-Setup (siehe quickstart Readme).
+# Host-Port 9090 wird auf Port 80 des kind-Nodes gemappt (ingress-nginx).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 9090
+        protocol: TCP

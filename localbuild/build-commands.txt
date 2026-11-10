@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MIT
+# Nur die Commands fuers lokale Deployment (PowerShell, aus dem Repo-Root Yarak).
+# Erklaerung siehe build-commands.md im selben Ordner.
+
+# 0) venv + Lockfile (hash-verifiziert) + Lint + Tests
+cd reservations
+python -m venv .venv
+.\.venv\Scripts\pip.exe install --require-hashes -r requirements-dev.txt
+.\.venv\Scripts\pip.exe install --no-deps -e .
+.\.venv\Scripts\ruff.exe check .
+.\.venv\Scripts\python.exe -m pytest -q
+cd ..
+
+# 1) kind-Cluster anlegen
+$env:KIND_EXPERIMENTAL_PROVIDER = "podman"   # nur falls nicht auto-erkannt
+kind create cluster --name kind-cluster --config localbuild/kind-config.yaml
+kind get clusters
+
+# 2) reservations-Image bauen (Lockfile wird hash-verifiziert installiert, siehe Containerfile)
+podman build -t localhost/yarak-reservations:v4 -f reservations/Containerfile reservations/
+podman images
+
+# 3) Image in den kind-Node laden (save/image-archive-Workaround, da podman-Provider)
+podman save localhost/yarak-reservations:v4 --format oci-archive -o "$env:TEMP\res-v4.tar"
+kind load image-archive "$env:TEMP\res-v4.tar" --name kind-cluster
+podman exec kind-cluster-control-plane ctr -n k8s.io images ls | Select-String yarak
+
+# 4) deployen (lokales Overlay aus localbuild/, Image kommt aus dem Node)
+kubectl create namespace beltado
+kubectl apply -k localbuild/ -n beltado
+kubectl get pods -n beltado -w
+
+# 5) API testen (port-forward, ohne Ingress)
+kubectl port-forward svc/reservations -n beltado 9000:80
+curl http://localhost:9000/api/v4/reservations/health
+curl http://localhost:9000/api/v4/reservations/status
+
+# 6) Rebuild nach Code-Aenderung (gleicher Tag -> rollout restart noetig)
+podman build -t localhost/yarak-reservations:v4 -f reservations/Containerfile reservations/
+podman save localhost/yarak-reservations:v4 --format oci-archive -o "$env:TEMP\res-v4.tar"
+kind load image-archive "$env:TEMP\res-v4.tar" --name kind-cluster
+kubectl rollout restart deployment/reservations -n beltado
+
+# 7) Aufraeumen
+kubectl delete -k localbuild/ -n beltado
+kind delete cluster --name kind-cluster
