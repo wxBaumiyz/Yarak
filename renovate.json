@@ -63,7 +63,7 @@
         "digest",
         "pin"
       ],
-      "automerge": false, // set to true to enable automerge
+      "automerge": true, // set to true to enable automerge
       "automergeType": "pr",
       "platformAutomerge": true
     }
