@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.15"
       - name: install dev-lock (sha256-Hashes)
         run: python -m pip install --require-hashes -r reservations/requirements-dev.txt
       - name: ruff check
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.15"
       - name: install dev-lock (sha256-Hashes)
         run: python -m pip install --require-hashes -r reservations/requirements-dev.txt
       - name: pytest
