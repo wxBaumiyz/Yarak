@@ -2,18 +2,28 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "description": "Auto-Renovate fuer Upstream-Dependencies: Python (pyproject.toml + Lockfiles) und Docker-Basisimage (auf Digest gepinnt).",
+  "description": "Auto-Renovate fuer Upstream-Dependencies: Python-Deps (pyproject.toml + Lockfiles) und Docker-Basisimage (auf Digest gepinnt). Python bleibt auf 3.12.x, Updates werden nur bei gruenem CI (lint/test/build) automerged.",
   "packageRules": [
     {
-      "description": "Python-Deps: Quelle ist pyproject.toml (pep621). Die Lockfiles requirements*.txt werden im selben PR per postUpgradeTasks mit uv UNIVERSELL neu generiert (inkl. sha256-Hashes + Platform-Marker).",
+      "description": "Python-Deps: Quelle ist pyproject.toml (pep621). Lockfiles requirements*.txt werden im selben PR per postUpgradeTasks mit uv UNIVERSELL neu generiert (inkl. sha256-Hashes + Platform-Marker).",
       "matchManagers": ["pep621"],
       "matchFileNames": ["reservations/pyproject.toml"],
       "postUpgradeTasks": {
         "commands": [
           "pip install -q uv && cd reservations && uv pip compile --universal --generate-hashes --python-version 3.12 pyproject.toml -o requirements.txt && uv pip compile --universal --generate-hashes --python-version 3.12 --extra dev pyproject.toml -o requirements-dev.txt"
         ],
-        "executionMode": "update"
+        "executionMode": "update",
+        "fileFilters": [
+          "reservations/requirements.txt",
+          "reservations/requirements-dev.txt"
+        ]
       }
+    },
+    {
+      "description": "requires-python in pyproject.toml ist Projektkonvention (3.12) - das upd der Bot nie automatisch.",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": ["python"],
+      "enabled": false
     },
     {
       "description": "requirements*.txt nicht direkt editieren lassen (pip-compile wuerde ohne --universal Linux-only-Deps wie uvloop verlieren) - Regeneration passiert ueber pyproject + postUpgradeTasks.",
@@ -22,15 +32,16 @@
       "enabled": false
     },
     {
-      "description": "Docker-Basisimage python:3.12-slim auf sha256-Digest pinnen und bei neuem Tag aktualisieren.",
+      "description": "Docker-Basisimage python: auf sha256-Digest pinnen, aber nur innerhalb 3.12.x (Patch-/Minor-Releases von Python 3.12). Kein Sprung auf 3.13+.",
       "matchManagers": ["dockerfile"],
       "matchPackageNames": ["python"],
+      "allowedVersions": "3.12.x",
       "pinDigests": true
     },
     {
-      "description": "Patch/Minor automatisch mergen, sobald die CI (lint/test/build) auf dem PR gruen ist. Major-Updates bleiben als PR zur manuellen Review.",
+      "description": "Patch/Minor automatisch mergen, sobald die CI (lint + test + build) auf dem PR gruen ist. Major-Updates bleiben als PR zur manuellen Review.",
       "matchUpdateTypes": ["patch", "minor"],
-      "automerge": true,
+      "automerge": false, // enable automerge here
       "automergeType": "pr",
       "platformAutomerge": true
     }
