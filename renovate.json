@@ -1,47 +1,66 @@
 // SPDX-License-Identifier: MIT
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "description": "Auto-Renovate fuer Upstream-Dependencies: Python-Deps (pyproject.toml + Lockfiles) und Docker-Basisimage (auf Digest gepinnt). Python bleibt auf 3.12.x, Updates werden nur bei gruenem CI (lint/test/build) automerged.",
+  "extends": [
+    "config:recommended"
+  ],
+  "description": "Renovate aktualisiert die Python-Dependencies (pyproject.toml + requirements*.txt), das Docker-Basisimage (nur innerhalb 3.12.x, digest-gepinnt) und die GitHub-Action-Versionen. Die Python-Version (3.12) selbst bleibt unberuehrt. Automerge ist derzeit deaktiviert - alle Updates landen als PR zur manuellen Review.",
+  "enabledManagers": [
+    "pep621",
+    "pip_requirements",
+    "dockerfile",
+    "github-actions"
+  ],
+  "pip_requirements": {
+    "fileMatch": [
+      "(^|/)requirements[^/]*[.]txt$"
+    ]
+  },
   "packageRules": [
     {
-      "description": "Python-Deps: Quelle ist pyproject.toml (pep621). Lockfiles requirements*.txt werden im selben PR per postUpgradeTasks mit uv UNIVERSELL neu generiert (inkl. sha256-Hashes + Platform-Marker).",
-      "matchManagers": ["pep621"],
-      "matchFileNames": ["reservations/pyproject.toml"],
-      "postUpgradeTasks": {
-        "commands": [
-          "pip install -q uv && cd reservations && uv pip compile --universal --generate-hashes --python-version 3.12 pyproject.toml -o requirements.txt && uv pip compile --universal --generate-hashes --python-version 3.12 --extra dev pyproject.toml -o requirements-dev.txt"
-        ],
-        "executionMode": "update",
-        "fileFilters": [
-          "reservations/requirements.txt",
-          "reservations/requirements-dev.txt"
-        ]
-      }
-    },
-    {
-      "description": "requires-python in pyproject.toml ist Projektkonvention (3.12) - das upd der Bot nie automatisch.",
-      "matchManagers": ["pep621"],
-      "matchPackageNames": ["python"],
+      "description": "requires-python in pyproject.toml ist Projektkonvention (3.12) - nie automatisch anfassen.",
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchPackageNames": [
+        "python"
+      ],
       "enabled": false
     },
     {
-      "description": "requirements*.txt nicht direkt editieren lassen (pip-compile wuerde ohne --universal Linux-only-Deps wie uvloop verlieren) - Regeneration passiert ueber pyproject + postUpgradeTasks.",
-      "matchManagers": ["pip-compile", "pip_requirements"],
-      "matchFileNames": ["reservations/requirements.txt", "reservations/requirements-dev.txt"],
-      "enabled": false
-    },
-    {
-      "description": "Docker-Basisimage python: auf sha256-Digest pinnen, aber nur innerhalb 3.12.x (Patch-/Minor-Releases von Python 3.12). Kein Sprung auf 3.13+.",
-      "matchManagers": ["dockerfile"],
-      "matchPackageNames": ["python"],
+      "description": "Docker-Basisimage python: nur innerhalb 3.12.x aktualisieren (Patch/Minor + neuer sha256-Digest), nie auf 3.13+. Beide Namens-Varianten (python / docker.io/library/python), damit die Regel greift.",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "python",
+        "docker.io/library/python"
+      ],
       "allowedVersions": "3.12.x",
       "pinDigests": true
     },
     {
-      "description": "Patch/Minor automatisch mergen, sobald die CI (lint + test + build) auf dem PR gruen ist. Major-Updates bleiben als PR zur manuellen Review.",
-      "matchUpdateTypes": ["patch", "minor"],
-      "automerge": false, // enable automerge here
+      "description": "GitHub-Actions: python-version in setup-python (ci.yml) ist Projektkonvention (3.12) - nie automatisch anfassen. Action-Versionen (checkout, setup-python, renovatebot/github-action) duerfen normal aktualisieren.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "python"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Patch/Minor/Digest/Pin-Updates (Python-Deps, Docker 3.12.x + Digest, Action-Patches) wuerden nach gruener CI automergen; Major-Updates (z.B. checkout v4->v5, Library-Majors) bleiben PR zur manuellen Review.",
+      "matchUpdateTypes": [
+        "patch",
+        "minor",
+        "digest",
+        "pin"
+      ],
+      "automerge": false, // set to true to enable automerge
       "automergeType": "pr",
       "platformAutomerge": true
     }
