@@ -7,6 +7,7 @@
   "description": "Renovate aktualisiert die Python-Dependencies (pyproject.toml + requirements*.txt), das Docker-Basisimage (nur innerhalb 3.12.x, digest-gepinnt) und die GitHub-Action-Versionen. Die Python-Version (3.12) selbst bleibt unberuehrt. Automerge ist derzeit deaktiviert - alle Updates landen als PR zur manuellen Review.",
   "enabledManagers": [
     "pep621",
+    "poetry",
     "pip_requirements",
     "dockerfile",
     "github-actions"
@@ -18,9 +19,10 @@
   },
   "packageRules": [
     {
-      "description": "requires-python in pyproject.toml ist Projektkonvention (3.12) - nie automatisch anfassen.",
+      "description": "requires-python in pyproject.toml ist Projektkonvention (3.12) - nie automatisch anfassen. (Manager heisst je nach Renovate-Version pep621 oder poetry.)",
       "matchManagers": [
-        "pep621"
+        "pep621",
+        "poetry"
       ],
       "matchPackageNames": [
         "python"
@@ -43,12 +45,13 @@
       "pinDigests": true
     },
     {
-      "description": "GitHub-Actions: python-version in setup-python (ci.yml) ist Projektkonvention (3.12) - nie automatisch anfassen. Action-Versionen (checkout, setup-python, renovatebot/github-action) duerfen normal aktualisieren.",
+      "description": "GitHub-Actions: python-version in setup-python (ci.yml) ist Projektkonvention (3.12) - nie automatisch anfassen, taucht auch nicht mehr als 'blocked' auf. Action-Versionen (checkout, setup-python, renovatebot/github-action) duerfen normal aktualisieren (z.B. setup-python v5->v7).",
       "matchManagers": [
         "github-actions"
       ],
       "matchPackageNames": [
-        "python"
+        "python",
+        "actions/python-versions"
       ],
       "enabled": false
     },
